@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-# ProjectX Tim
-=======
-# ProjectX_Tim
-Repository of codes for the Project X Tim group
+# Tim Project X
+This repository contains code and outlines methodology for TinyML applications for ProjectX
 
-
-# Git workflow for the project
-
->>>>>>> 2f944b4309c3507d6a064927b19426b10ef89b9c
+### GitHub workflow to follow 
+GitHub workflow from Coleman's collaborative coding course (see [here](https://ckrawczyk.github.io/DISCnet_workshop/github_with_collaborators.html)).  
