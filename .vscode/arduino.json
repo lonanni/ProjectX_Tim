@@ -1,0 +1,5 @@
+{
+    "board": "arduino:mbed_nano:nano33ble",
+    "sketch": "test_pressure_sensor\\test_pressure_sensor.ino",
+    "port": "COM3"
+}
