@@ -3,9 +3,6 @@
 #include <ESP32SJA1000.h>
 #include <MCP2515.h>
 
-// Copyright (c) Sandeep Mistry. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 #include <CAN.h>
 
 void setup() {
@@ -14,8 +11,8 @@ void setup() {
 
   Serial.println("CAN Sender");
 
-  // start the CAN bus at 500 kbps
-  if (!CAN.begin(500E3)) {
+  // start the CAN bus at 250 kbps
+  if (!CAN.begin(250E3)) {
     Serial.println("Starting CAN failed!");
     while (1);
   }
@@ -26,11 +23,7 @@ void loop() {
   Serial.print("Sending packet ... ");
 
   CAN.beginPacket(0x12);
-  CAN.write('h');
-  CAN.write('e');
-  CAN.write('l');
-  CAN.write('l');
-  CAN.write('o');
+  CAN.write('c');
   CAN.endPacket();
 
   Serial.println("done");
@@ -41,10 +34,6 @@ void loop() {
   Serial.print("Sending extended packet ... ");
 
   CAN.beginExtendedPacket(0xabcdef);
-  CAN.write('w');
-  CAN.write('o');
-  CAN.write('r');
-  CAN.write('l');
   CAN.write('d');
   CAN.endPacket();
 
