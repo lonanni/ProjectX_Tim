@@ -1,9 +1,4 @@
-#include <CAN.h>
-#include <CANController.h>
-#include <ESP32SJA1000.h>
 #include <MCP2515.h>
-
-#include <CAN.h>
 
 void setup() {
   Serial.begin(9600);
