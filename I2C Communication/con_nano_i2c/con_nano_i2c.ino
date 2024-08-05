@@ -1,14 +1,23 @@
 #include <cppQueue.h>
 #include <Wire.h>
 
-const int NANOADDR = 8;
+const int PAYLOADADDR[3] = {8,9,10};
 const int REQTIMEOUT = 500;
+const int DATASIZE = 1000;
 
-const int DATASIZE = 16;
-const char DEMODATA[DATASIZE] = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
-cppQueue inputBuffer(sizeof(char), DATASIZE, FIFO);
-cppQueue outputBuffer(sizeof(char), DATASIZE, FIFO);
+const byte EMPTYFLAG = 0x00;
+const byte DONEFLAG = 0xFF;
 
+cppQueue DAVEInBuffer(sizeof(byte), DATASIZE, FIFO);
+cppQueue SAIRAInBuffer(sizeof(byte), DATASIZE, FIFO);
+cppQueue DMLOMInBuffer(sizeof(byte), DATASIZE, FIFO);
+cppQueue inputBuffers[3] = {DAVEInBuffer, SAIRAInBuffer, DMLOMInBuffer};
+cppQueue outputBuffer(sizeof(byte), DATASIZE, FIFO);
+
+byte inByte = 0;
+int byteCount = 0;
+int payloadIDIn = 1;
+int payloadIDOut = 1;
 
 void setup() {
     Serial.begin(9600);
@@ -16,68 +25,81 @@ void setup() {
     Wire.begin(); // join i2c bus 
     delay(1000); //1 second delay to give Wire library time to initalise I2C
 
-    Serial.println("Starting");
+    Serial.println("Controller Nano Starting");
 
-    //fills the input buffer with example data
+    //fills the input buffer with example data for testing, comment out this function for normal use
     fillQueue();
 }
 
 void loop() {
-    //checks if there is any data to send in the input buffer
-    if(inputBuffer.isEmpty() == false){
-        //Transmits entire contents of input buffer        
-        while(inputBuffer.isEmpty() == false ){
-            char byteToWrite;
-            //Takes a byte/character out of the input buffer
-            inputBuffer.pop(&byteToWrite);
-            
-            Serial.println("Transmitting Data");
-            Serial.println(byteToWrite);
-
-            Wire.beginTransmission(NANOADDR); // transmit to device
-            Wire.write(byteToWrite);        // sends the byte from the buffer
-            Wire.endTransmission();    // stop transmitting
-        } 
+    //transmits contents of input buffer to the payload nano
+    while(inputBuffers[payloadIDIn].isEmpty() == false ){
+        byte outByte;
+        //Takes a byte/character out of the input buffer
+        inputBuffers[payloadIDIn].pop(&outByte);
         
-        Serial.println("Transmission Complete");
-    }
+        Serial.println("Transmitting data");
+        Serial.println(outByte);
 
-    //every loop, the controller queries the payload nano for output data
-    char entry = '#';
-    while(entry != '!'){
-        Serial.println("Requesting Data");
-        Wire.requestFrom(NANOADDR, 1);
+        Wire.beginTransmission(PAYLOADADDR[payloadIDIn]); // transmit to device
+        Wire.write(outByte);        // sends the byte from the buffer
+        Wire.endTransmission();    // stop transmitting
+    } 
+
+
+    inByte = 0;
+    byteCount = 1;
+    //repeatedly queries the payload nano for output data, only stopping when the nano has nothing to send
+    while(byteCount == 1){
+        Serial.println("Requesting data");
+        //Requests two bytes to allow for 2 byte control flag, but 1 byte is expected for normal data transfer
+        byteCount = Wire.requestFrom(PAYLOADADDR[payloadIDOut], 2);
 
         while (Wire.available()) {
-            entry = Wire.read();
-            //If the payload nano has nothing ready to send, the controller waits
-            if(entry == '!'){
-                Serial.println("Nano not ready");
-                delay(REQTIMEOUT);
-            }else{
-            //If the payload nano has data to send, its saved to the controller output buffer
-                Serial.print("Recieving Data ");
-                
+            inByte = Wire.read();
+
+            //If the payload nano sends data, its saved to the controller output buffer
+            if(byteCount == 1){
+                Serial.println("Recieving byte ");
+                Serial.print(inByte);
+
                 //Flushes the output buffer once its full
                 //This will get replaced with CAN output code
                 if(outputBuffer.isFull()){
-                    Serial.println("Output buffer full, flushing");
+                    Serial.println("Output buffer full: Flushing");
                     outputBuffer.flush();
                 }
 
-                outputBuffer.push(&entry);
-                Serial.println(entry);
+                outputBuffer.push(&inByte);
+            }
+            else if(byteCount == 2){ //if 2 bytes of data is recieved in a single read, it's a control message
+                inByte = Wire.read();
+                if(inByte == DONEFLAG){
+                    Serial.println("Payload Nano finished with process");
+                }else{
+                    Serial.println("Payload Nano has nothing to send");
+                    delay(REQTIMEOUT);
+                }
+                Wire.read();
+                
+            }
+            else{
+                Serial.println("Warning: no response from Payload Nano");
+                delay(REQTIMEOUT);
             }
         }
     }
 }
 
-//Fills the I2C input buffer with example data. This will be replaced with CAN input code
+//Fills the I2C input buffer with example data for testing
 void fillQueue(){
-    int i;
-    for (i = 0 ; i < DATASIZE ; i++)
+    byte DEMODATA[64] = {0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 
+                           0x00, 0x01, 0x00, 0x00, 0xFF, 0xE1, 0x00, 0x2A, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x49, 0x49, 
+                           0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x31, 0x01, 0x02, 0x00, 0x07, 0x00, 0x00, 0x00, 
+                           0x1A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0x69, 0x63, 0x61, 0x73, 0x61, 0x00, 0x00};
+    for (int i = 0 ; i < 64 ; i++)
 	{
-		char entry = DEMODATA[i];
-		inputBuffer.push(&entry);
+		byte entry = DEMODATA[i];
+		inputBuffers[payloadIDIn].push(&entry);
 	}
 }
