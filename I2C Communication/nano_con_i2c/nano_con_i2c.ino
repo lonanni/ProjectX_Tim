@@ -24,8 +24,8 @@ void loop() {
 	//While loop pretends to be a process consuming data, moving a byte in the input buffer to the output buffer every second, this will get replaced with an actual tinyml process
 	while(inputBuffer.isEmpty() == false){
 		inputBuffer.pop(&liveData);
-		Serial.println("Processing ");
-		Serial.print(liveData);
+		Serial.print("Processing ");
+		Serial.println(liveData, HEX);
 
 		if(outputBuffer.isFull()){
 			Serial.println("Output buffer full: Flushing");
@@ -39,8 +39,8 @@ void loop() {
 void I2CReceiveEvent(int howMany) {
 	byte inByte;
 	inByte = Wire.read();
-	Serial.println("Recieving byte ");
-	Serial.print(inByte);
+	Serial.print("Recieving byte ");
+	Serial.println(inByte, HEX);
 
 	if(inputBuffer.isFull()){
 		Serial.println("Input buffer full: Flushing");
@@ -52,20 +52,22 @@ void I2CReceiveEvent(int howMany) {
 
 void I2CRequestEvent(){
 	byte outByte;
-	if (!outputBuffer.isEmpty()){
-		outputBuffer.pop(&outByte);
-		Wire.write(outByte);
-		Serial.println("Replying with byte ");
-		Serial.print(outByte);
+	int dataBytes = min(outputBuffer.getCount(), 8);
+
+	if(finished){
+		Serial.println("Done with process");
+		Wire.write(DONEFLAG);
 	}else{
-		if (finished){
-			Serial.println("Done with process");
-			Wire.write(DONEFLAG);
-			Wire.write(DONEFLAG);
-		}else{
-			Serial.println("No output data");
-			Wire.write(EMPTYFLAG);
-			Wire.write(EMPTYFLAG);
+		Serial.print("Sending flag byte ");
+		Serial.println(dataBytes, HEX);
+		//Number of data bytes in message sent as first byte
+		Wire.write(dataBytes);
+
+		for(int i = 0; i < dataBytes; i++){
+			outputBuffer.pop(&outByte);
+			Wire.write(outByte);
+			Serial.print("Sending byte ");
+			Serial.println(outByte, HEX);
 		}
-	} 
+	}
 }

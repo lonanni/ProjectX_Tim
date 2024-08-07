@@ -15,9 +15,11 @@ cppQueue inputBuffers[3] = {DAVEInBuffer, SAIRAInBuffer, DMLOMInBuffer};
 cppQueue outputBuffer(sizeof(byte), DATASIZE, FIFO);
 
 byte inByte = 0;
+int flagByte = 0;
+int databytesRead = 0;
 int byteCount = 0;
-int payloadIDIn = 1;
-int payloadIDOut = 1;
+int payloadIDIn = 0;
+int payloadIDOut = 0;
 
 void setup() {
     Serial.begin(9600);
@@ -39,53 +41,52 @@ void loop() {
         inputBuffers[payloadIDIn].pop(&outByte);
         
         Serial.println("Transmitting data");
-        Serial.println(outByte);
+        Serial.println(outByte, HEX);
 
         Wire.beginTransmission(PAYLOADADDR[payloadIDIn]); // transmit to device
         Wire.write(outByte);        // sends the byte from the buffer
         Wire.endTransmission();    // stop transmitting
     } 
 
-
-    inByte = 0;
-    byteCount = 1;
+    flagByte = 8;
+    byteCount = 9;
     //repeatedly queries the payload nano for output data, only stopping when the nano has nothing to send
-    while(byteCount == 1){
+    while(byteCount != 0 && flagByte != EMPTYFLAG){
         Serial.println("Requesting data");
-        //Requests two bytes to allow for 2 byte control flag, but 1 byte is expected for normal data transfer
-        byteCount = Wire.requestFrom(PAYLOADADDR[payloadIDOut], 2);
+        byteCount = Wire.requestFrom(PAYLOADADDR[payloadIDOut], 9);
+        flagByte = Wire.read();
+        databytesRead = 0;
 
-        while (Wire.available()) {
-            inByte = Wire.read();
+        if(byteCount == 0){
+            Serial.println("Warning: no response from Payload Nano");
+            delay(REQTIMEOUT);
+        }else if(flagByte == EMPTYFLAG){
+            Serial.println("Payload Nano has nothing to send");
+            delay(REQTIMEOUT);
+        }else if(flagByte == DONEFLAG){
+            Serial.println("Payload Nano finished with process");
+            delay(REQTIMEOUT);
+        }else{
+            Serial.print("Obtained flag byte ");
+            Serial.println(flagByte, HEX);
 
-            //If the payload nano sends data, its saved to the controller output buffer
-            if(byteCount == 1){
-                Serial.println("Recieving byte ");
-                Serial.print(inByte);
+            while (Wire.available()) {
+                if(databytesRead < flagByte){
+                    databytesRead++;
+                    inByte = Wire.read();
+                    Serial.print("Recieving byte ");
+                    Serial.println(inByte, HEX);
+                    //Flushes the output buffer once its full   
+                    //This will get replaced with CAN output code
+                    if(outputBuffer.isFull()){
+                        Serial.println("Output buffer full: Flushing");
+                        outputBuffer.flush();
+                    }
 
-                //Flushes the output buffer once its full
-                //This will get replaced with CAN output code
-                if(outputBuffer.isFull()){
-                    Serial.println("Output buffer full: Flushing");
-                    outputBuffer.flush();
-                }
-
-                outputBuffer.push(&inByte);
-            }
-            else if(byteCount == 2){ //if 2 bytes of data is recieved in a single read, it's a control message
-                inByte = Wire.read();
-                if(inByte == DONEFLAG){
-                    Serial.println("Payload Nano finished with process");
+                    outputBuffer.push(&inByte);
                 }else{
-                    Serial.println("Payload Nano has nothing to send");
-                    delay(REQTIMEOUT);
+                    Wire.read();
                 }
-                Wire.read();
-                
-            }
-            else{
-                Serial.println("Warning: no response from Payload Nano");
-                delay(REQTIMEOUT);
             }
         }
     }
