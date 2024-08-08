@@ -5,6 +5,7 @@ const int ADDR = 8;
 const byte EMPTYFLAG = 0x00;
 const byte DONEFLAG = 0xFF;
 const int DATASIZE = 1000;
+const int I2CFREQ = 1000000;
 
 cppQueue inputBuffer(sizeof(byte), DATASIZE, FIFO);
 cppQueue outputBuffer(sizeof(byte), DATASIZE, FIFO);
@@ -17,6 +18,7 @@ void setup() {
 	Wire.begin(ADDR);                // join i2c bus with address
 	Wire.onReceive(I2CReceiveEvent); // function that executes whenever data is received from writer
 	Wire.onRequest(I2CRequestEvent);
+	Wire.setClock(I2CFREQ);
 	delay(1000);
 }
 
@@ -24,9 +26,6 @@ void loop() {
 	//While loop pretends to be a process consuming data, moving a byte in the input buffer to the output buffer every second, this will get replaced with an actual tinyml process
 	while(inputBuffer.isEmpty() == false){
 		inputBuffer.pop(&liveData);
-		Serial.print("Processing ");
-		Serial.println(liveData, HEX);
-
 		if(outputBuffer.isFull()){
 			Serial.println("Output buffer full: Flushing");
 			outputBuffer.flush();

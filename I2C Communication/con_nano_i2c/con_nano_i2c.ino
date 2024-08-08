@@ -4,6 +4,7 @@
 const int PAYLOADADDR[3] = {8,9,10};
 const int REQTIMEOUT = 500;
 const int DATASIZE = 1000;
+const int I2CFREQ = 1000000;
 
 const byte EMPTYFLAG = 0x00;
 const byte DONEFLAG = 0xFF;
@@ -25,6 +26,7 @@ void setup() {
     Serial.begin(9600);
     while (!Serial);
     Wire.begin(); // join i2c bus 
+    Wire.setClock(I2CFREQ);
     delay(1000); //1 second delay to give Wire library time to initalise I2C
 
     Serial.println("Controller Nano Starting");
@@ -82,7 +84,6 @@ void loop() {
                         Serial.println("Output buffer full: Flushing");
                         outputBuffer.flush();
                     }
-
                     outputBuffer.push(&inByte);
                 }else{
                     Wire.read();
