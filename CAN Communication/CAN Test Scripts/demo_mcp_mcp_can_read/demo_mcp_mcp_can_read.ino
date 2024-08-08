@@ -7,11 +7,12 @@ void setup() {
   Serial.println("CAN Receiver");
 
   // start the CAN bus at 250 kbps
+  CAN.setPins(9,2);
   if (!CAN.begin(250E3)) {
     Serial.println("Starting CAN failed!");
     while (1);
   }
-}
+} 
 
 void loop() {
   // try to parse packet
