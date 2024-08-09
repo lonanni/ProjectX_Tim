@@ -41,14 +41,14 @@ void loop() {
         byte outByte;
         //Takes a byte/character out of the input buffer
         inputBuffers[payloadIDIn].pop(&outByte);
-        
+            
         Serial.println("Transmitting data");
         Serial.println(outByte, HEX);
 
         Wire.beginTransmission(PAYLOADADDR[payloadIDIn]); // transmit to device
         Wire.write(outByte);        // sends the byte from the buffer
         Wire.endTransmission();    // stop transmitting
-    } 
+    }
 
     flagByte = 8;
     byteCount = 9;
@@ -56,7 +56,9 @@ void loop() {
     while(byteCount != 0 && flagByte != EMPTYFLAG){
         Serial.println("Requesting data");
         byteCount = Wire.requestFrom(PAYLOADADDR[payloadIDOut], 9);
-        flagByte = Wire.read();
+        if(byteCount != 0 && Wire.available()){
+            flagByte = Wire.read();
+        }
         databytesRead = 0;
 
         if(byteCount == 0){
@@ -64,9 +66,15 @@ void loop() {
             delay(REQTIMEOUT);
         }else if(flagByte == EMPTYFLAG){
             Serial.println("Payload Nano has nothing to send");
+            while(Wire.available()){
+                Wire.read();
+            }
             delay(REQTIMEOUT);
         }else if(flagByte == DONEFLAG){
             Serial.println("Payload Nano finished with process");
+            while(Wire.available()){
+                Wire.read();
+            }
             delay(REQTIMEOUT);
         }else{
             Serial.print("Obtained flag byte ");

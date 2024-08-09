@@ -14,12 +14,12 @@ bool finished;
 
 void setup() {
 	Serial.begin(9600);
-	Serial.println("Payload Nano starting");
 	Wire.begin(ADDR);                // join i2c bus with address
 	Wire.onReceive(I2CReceiveEvent); // function that executes whenever data is received from writer
 	Wire.onRequest(I2CRequestEvent);
 	Wire.setClock(I2CFREQ);
 	delay(1000);
+	Serial.println("Payload Nano started");
 }
 
 void loop() {
