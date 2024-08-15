@@ -1,7 +1,7 @@
 #include <cppQueue.h>
 #include <MCP2515.h>
 
-const int DATASIZE = 1000;
+const int DATASIZE = 256;
 const int CANID = 0x11;
 cppQueue outputBuffer(sizeof(byte), DATASIZE, FIFO);
 
@@ -10,13 +10,16 @@ void setup(){
   Serial.begin(9600);
   while (!Serial);
 
-  Serial.println("CAN Receiver");
+  Serial.println("CAN Writer");
 
   // start the CAN bus at 500 kbps
   if (!CAN.begin(500E3)) {
     Serial.println("Starting CAN failed!");
     while (1);
   }
+  
+    CAN.onReceive(CANRecieveEvent);
+
   fillQueue();
 }
 
@@ -50,4 +53,34 @@ void fillQueue(){
 		byte entry = i;
 		outputBuffer.push(&entry);
 	}
+}
+
+void CANRecieveEvent(int packetSize) {
+    // received a packet
+    Serial.print("CAN: Received ");  
+    if (CAN.packetExtended()) {
+        Serial.print("extended ");
+    }   
+    if (CAN.packetRtr()) {
+        // Remote transmission request, packet contains no data
+        Serial.print("RTR ");
+    }   
+    Serial.print("packet with id 0x");
+    Serial.print(CAN.packetId(), HEX);  
+    switch(CAN.packetId()){ 
+    }   
+    if (CAN.packetRtr()) {
+        Serial.print(" and requested length ");
+        Serial.println(CAN.packetDlc());
+    } else {
+        Serial.print(" and length ");
+        Serial.println(packetSize);   
+        // only print packet data for non-RTR packets
+        while (CAN.available()) {
+          	byte inByte;
+            inByte = CAN.read();
+            Serial.print("CAN: ");
+            Serial.println(inByte);
+        }
+    }
 }
